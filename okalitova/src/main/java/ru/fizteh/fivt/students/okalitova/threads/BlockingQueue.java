@@ -3,6 +3,7 @@ package ru.fizteh.fivt.students.okalitova.threads;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -12,38 +13,39 @@ import java.util.concurrent.locks.ReentrantLock;
 public class BlockingQueue<T> {
     private Queue<T> queue =  new LinkedList<T>();
     private static int maxQueueSize = 0;
-    private ReentrantLock writingLock = new ReentrantLock();
-    private ReentrantLock readingLock = new ReentrantLock();
-    private Condition empty = writingLock.newCondition();
-    private Condition nonEmpty = readingLock.newCondition();
+    private ReentrantLock lock = new ReentrantLock();
+    private Condition empty = lock.newCondition();
+    private Condition nonEmpty = lock.newCondition();
 
-    BlockingQueue(int maxQueueSize) {
+    public BlockingQueue(int maxQueueSize) {
         this.maxQueueSize = maxQueueSize;
     }
 
-    synchronized void offer(List<T> e) throws InterruptedException {
-        writingLock.lock();
+    public synchronized void offer(List<T> e) throws InterruptedException {
+        lock.lock();
         while (e.size() + queue.size() > maxQueueSize) {
             try {
-                empty.await();
+                empty.await(5, TimeUnit.SECONDS); //таймаут 5 секунд
             } catch (InterruptedException ex) {
                 throw ex;
             }
         }
         for (T elem : e) {
-            e.add(elem);
+            queue.add(elem);
+        }
+        if (queue.size() > 0) {
             nonEmpty.signal();
         }
-        writingLock.unlock();
+        lock.unlock();
     }
 
-    synchronized List<T> take(int n) throws InterruptedException {
-        readingLock.lock();
+    public synchronized List<T> take(int n) throws InterruptedException {
+        lock.lock();
         List<T> result = new LinkedList<T>();
 
         while (queue.size() < n) {
             try {
-                nonEmpty.await();
+                nonEmpty.await(5, TimeUnit.SECONDS); //таймаут 5 секунд
             } catch (InterruptedException e) {
                 throw e;
             }
@@ -56,7 +58,7 @@ public class BlockingQueue<T> {
         if (queue.size() == 0) {
             empty.signal();
         }
-        readingLock.unlock();
+        lock.unlock();
         return result;
     }
 }
