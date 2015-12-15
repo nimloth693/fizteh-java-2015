@@ -1,8 +1,8 @@
 package ru.fizteh.fivt.students.okalitova.threads;
 
-import com.sun.corba.se.impl.orbutil.concurrent.Mutex;
-
 import java.util.ArrayList;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Created by nimloth on 06.12.15.
@@ -10,19 +10,27 @@ import java.util.ArrayList;
 
 public class ThreadsCounter {
     private static int counter = -1;
-    private static Mutex mutex = new Mutex();
+    private static ReentrantLock lock = new ReentrantLock();
+    private static Condition cond = lock.newCondition();
 
     private static Runnable countThread = () -> {
-        String threadName = Thread.currentThread().getName();
-        boolean ready = false;
-        while (!ready) {
-            synchronized (mutex) {
-                if (counter + 1 == Integer.parseInt(threadName)) {
-                    counter++;
-                    System.out.println("Thread-" + counter);
-                    ready = true;
+        try {
+            String threadName = Thread.currentThread().getName();
+            lock.lock();
+
+            while (counter + 1 != Integer.parseInt(threadName)) {
+                try {
+                    cond.await();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
                 }
             }
+
+            counter++;
+            System.out.println("Thread-" + counter);
+            cond.signalAll();
+        } finally {
+            lock.unlock();
         }
     };
 

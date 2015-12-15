@@ -22,43 +22,52 @@ public class BlockingQueue<T> {
     }
 
     public synchronized void offer(List<T> e) throws InterruptedException {
-        lock.lock();
-        while (e.size() + queue.size() > maxQueueSize) {
-            try {
-                empty.await(5, TimeUnit.SECONDS); //таймаут 5 секунд
-            } catch (InterruptedException ex) {
-                throw ex;
+        try {
+            lock.lock();
+            while (e.size() + queue.size() > maxQueueSize) {
+                try {
+                    boolean flag = empty.await(5, TimeUnit.SECONDS); //таймаут 5 секунд
+                    if (!flag) {
+                        return;
+                    }
+                } catch (InterruptedException ex) {
+                    throw ex;
+                }
             }
+            for (T elem : e) {
+                queue.add(elem);
+            }
+            if (queue.size() > 0) {
+                nonEmpty.signal();
+            }
+        } finally {
+            lock.unlock();
         }
-        for (T elem : e) {
-            queue.add(elem);
-        }
-        if (queue.size() > 0) {
-            nonEmpty.signal();
-        }
-        lock.unlock();
     }
 
     public synchronized List<T> take(int n) throws InterruptedException {
-        lock.lock();
-        List<T> result = new LinkedList<T>();
+        try {
+            lock.lock();
+            List<T> result = new LinkedList<T>();
 
-        while (queue.size() < n) {
-            try {
-                nonEmpty.await(5, TimeUnit.SECONDS); //таймаут 5 секунд
-            } catch (InterruptedException e) {
-                throw e;
+            while (queue.size() < n) {
+                try {
+                    boolean flag = nonEmpty.await(5, TimeUnit.SECONDS); //таймаут 5 секунд
+                    if (!flag) {
+                        return result;
+                    }
+                } catch (InterruptedException e) {
+                    throw e;
+                }
             }
-        }
 
-        for (int i = 0; i < n; ++i) {
-            result.add(queue.element());
-            queue.remove();
-        }
-        if (queue.size() == 0) {
+            for (int i = 0; i < n; ++i) {
+                result.add(queue.remove());
+            }
             empty.signal();
+            return result;
+        } finally {
+            lock.unlock();
         }
-        lock.unlock();
-        return result;
     }
 }
