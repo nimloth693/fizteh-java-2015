@@ -2,10 +2,12 @@ package ru.fizteh.fivt.students.collectionsqltest;
 
 import org.junit.Test;
 import ru.fizteh.fivt.students.okalitova.collectionsql.CollectionsQL;
+import ru.fizteh.fivt.students.okalitova.collectionsql.Tuple;
 
 import java.lang.reflect.InvocationTargetException;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.assertEquals;
@@ -76,7 +78,7 @@ public class SelectTest {
                         CollectionsQL.Student::getGroup,
                         max(CollectionsQL.Student::age),
                         count(CollectionsQL.Student::getName))
-                        .groupBy(CollectionsQL.Student::getGroup)
+                .groupBy(CollectionsQL.Student::getGroup)
                 .execute();
         CollectionsQL.Statistics item = new CollectionsQL.Statistics("495", Long.parseLong("29"),
                 Long.parseLong("3"));
@@ -119,5 +121,18 @@ public class SelectTest {
         item = new CollectionsQL.Statistics("494", Long.parseLong("30"),
                 Long.parseLong("30"));
         assertThat(statistics, hasItem(item));
+    }
+
+    @Test
+    public void joinTest() throws IllegalAccessException, InstantiationException, InvocationTargetException {
+        Iterable<Tuple<String, String>> mentorsByStudent =
+                from(list(student("ivanov", LocalDate.parse("1985-08-06"), "494")))
+                        .join(list(new CollectionsQL.Group("494", "mr.sidorov")))
+                        .on((s, g) -> Objects.equals(s.getGroup(), g.getGroup()))
+                        .select(sg -> sg.getFirst().getName(), sg -> sg.getSecond().getMentor())
+                        .execute();
+        for (Tuple<String, String> it : mentorsByStudent) {
+            assertEquals(it, new Tuple<>("ivanov", "mr.sidorov"));
+        }
     }
 }

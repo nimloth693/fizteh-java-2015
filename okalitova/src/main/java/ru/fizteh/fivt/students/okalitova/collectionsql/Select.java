@@ -14,7 +14,9 @@ import java.util.stream.Collectors;
 public class Select<T, R> {
     private Iterable<T> iterable;
     private Class<R> myClass;
+    private Class joinClass;
     private boolean distinct;
+    private boolean isJoin = false;
     private Function<T, ?>[] functions;
 
     private Predicate<T> wherePredicate;
@@ -33,6 +35,14 @@ public class Select<T, R> {
         myClass = initClass;
         distinct = initDistinct;
         functions = initFunctions;
+    }
+
+    public Select(List<T> initElements, boolean isDistinct, Function<T, ?> first, Function<T, ?> second) {
+        iterable = initElements;
+        joinClass = initElements.get(0).getClass();
+        distinct = isDistinct;
+        functions = new Function[]{first, second};
+        isJoin = true;
     }
 
     public Select<T, R> where(Predicate<T> initPredicate) {
@@ -128,17 +138,26 @@ public class Select<T, R> {
                     }
                 }
 
-                R addItem = null;
-                try {
-                    addItem = myClass
-                            .getConstructor(returnClasses)
-                            .newInstance(arguments);
-                } catch (NoSuchMethodException e) {
-                    e.printStackTrace();
-                    e.getMessage();
-                }
-                if (havingPredicate == null || havingPredicate.test(addItem)) {
-                    result.add(addItem);
+                if (isJoin) {
+                    isJoin = false;
+               //     Tuple addItem = new joinClass.get(arguments[0], arguments[1]);
+                 //   if (havingPredicate == null || havingPredicate.test((R) addItem)) {
+                   //     result.add((R) addItem);
+                   // }
+                } else {
+
+                    R addItem = null;
+                    try {
+                        addItem = myClass
+                                .getConstructor(returnClasses)
+                                .newInstance(arguments);
+                    } catch (NoSuchMethodException e) {
+                        e.printStackTrace();
+                        e.getMessage();
+                    }
+                    if (havingPredicate == null || havingPredicate.test(addItem)) {
+                        result.add(addItem);
+                    }
                 }
             }
         }
